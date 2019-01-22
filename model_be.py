@@ -59,10 +59,8 @@ def ldw(belo,draw_elo,bias):
 def probs_(belo,draw_elo,bias):
     ldw1=ldw(belo,draw_elo,bias)
     ldw2=ldw(belo,draw_elo,-bias)
-    ldw2_reverse=copy.copy(ldw2)
-    list(ldw2_reverse).reverse()
     return (stats_pentanomial.avg([ldw1,ldw2]),
-            stats_pentanomial.trinomial_to_pentanomial(ldw1,ldw2_reverse))
+            stats_pentanomial.trinomial_to_pentanomial(ldw1,ldw2))
 
 def probs(belo,draw_elo,biases):
     probs3=[]
@@ -107,11 +105,13 @@ def stats_logistic(belo,draw_elo,biases):
     stats['probs5']=probs5
     stats['s3']=stats_pentanomial.score(probs3)
     stats['s5']=stats_pentanomial.score(probs5)
-    stats['var3']=stats.pentanomial.var(probs3)
-    stats['var5']=stats.pentanomial.var(probs5)
+    epsilon=1e-6
+    assert(abs(stats['s3']-stats['s5'])<epsilon)
+    stats['var3']=stats_pentanomial.var(probs3)
+    stats['var5']=stats_pentanomial.var(probs5)
     stats['elo']=score_to_elo(stats['s3'])
     d=probs3[1]/(sum(probs3))
-    stats['draw_ratio_sp']=d
+    stats['draw_ratio']=d
     mu,sigma2=stats_biases(draw_elo,biases)
     stats['mu']=mu
     stats['sigma2']=sigma2
@@ -120,3 +120,11 @@ def stats_logistic(belo,draw_elo,biases):
     v=(1-d)/4
     stats['ratio_predicted']=(v-sigma2)/(v+mu**2)
     return stats
+
+def pick(belo,draw_elo,biases):
+    bias=random.choice(biases)
+    ldw1=ldw(belo,draw_elo,bias)
+    ldw2=ldw(belo,draw_elo,-bias)
+    i=stats_pentanomial.pick(ldw1)
+    j=stats_pentanomial.pick(ldw2)
+    return i,j
