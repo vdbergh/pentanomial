@@ -54,31 +54,6 @@ pdf is a list of pairs (value,probability).
 """
     return LL(pdf,MLE(pdf,s1))-LL(pdf,MLE(pdf,s0))
 
-def LLR_alt(pdf,s0,s1):
-    """
-This function computes the approximate generalized log likelihood ratio (divided by N) 
-for s=s1 versus s=s0 where pdf is an empirical distribution and 
-s is the expectation value of the true distribution.
-pdf is a list of pairs (value,probability). See
-
-http://hardy.uhasselt.be/Toga/computeLLR.pdf
-"""
-    r0,r1=[sum([prob*(value-s)**2 for value,prob in pdf]) for s in (s0,s1)]
-    return 1/2*math.log(r0/r1)
-
-def LLR_alt2(pdf,s0,s1):
-    """
-This function computes the approximate generalized log likelihood ratio (divided by N)
-for s=s1 versus s=s0 where pdf is an empirical distribution and
-s is the expectation value of the true distribution.
-pdf is a list of pairs (value,probability). See
-
-http://hardy.uhasselt.be/Toga/GSPRT_approximation.pdf
-"""
-    s=sum([prob*value for value,prob in pdf])
-    var=sum([prob*(value-s)**2 for value,prob in pdf])
-    return (s1-s0)*(2*s-s0-s1)/var/2.0
-
 def L_(x):
     return 1/(1+10**(-x/400))
 

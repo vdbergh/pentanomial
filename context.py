@@ -69,6 +69,8 @@ class context:
         self._draw_elo=draw_elo
         self._biases=biases
         self._cache={}
+        self._ldw_cache={}
+        self.ldws=[]
 
     def _probs(self,belo):
         """
@@ -141,8 +143,12 @@ the current context.
     def pick(self,elo):
         belo=self.elo_to_belo(elo)
         bias=random.choice(self._biases)
-        ldw1=ldw(belo,self._draw_elo,bias)
-        ldw2=ldw(belo,self._draw_elo,-bias)
+        if (belo,bias) in self._ldw_cache:
+            ldw1,ldw2=self._ldw_cache[(belo,bias)]
+        else:
+            ldw1=ldw(belo,self._draw_elo,bias)
+            ldw2=ldw(belo,self._draw_elo,-bias)
+            self._ldw_cache[(belo,bias)]=ldw1,ldw2
         i=stats_pentanomial.pick(ldw1)
         j=stats_pentanomial.pick(ldw2)
         return i,j
