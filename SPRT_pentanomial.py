@@ -39,18 +39,12 @@ class SPRT:
         if self.status_!='':
             return
         self.results[result]+=1
-        LLR=LLRcalc.LLR_logistic(self.elo0,self.elo1,self.results)
-        if LLR>self.max_LLR:
-            self.sq1+=(LLR-self.max_LLR)*(LLR-self.max_LLR)
-            self.max_LLR=LLR
-            self.o1=self.sq1/LLR/2
-        if LLR<self.min_LLR:
-            self.sq0+=(LLR-self.min_LLR)*(LLR-self.min_LLR)
-            self.min_LLR=LLR
-            self.o0=-self.sq0/LLR/2
-        if LLR>self.LB-self.o1:
+        LLR,overshoot=LLRcalc.LLR_logistic(self.elo0,self.elo1,self.results)
+        # sanitize
+        overshoot=min((self.LB-self.LA)/20,overshoot)
+        if LLR>self.LB-overshoot:
             self.status_='H1'
-        elif LLR < self.LA+self.o0:
+        elif LLR < self.LA+overshoot:
             self.status_='H0'
 
     def status(self):
