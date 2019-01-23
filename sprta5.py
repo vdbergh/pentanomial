@@ -2,7 +2,7 @@ from __future__ import division
 
 import math,sys,argparse
 
-import stats_pentanomial,model_be
+import stats_pentanomial,context
 
 """
 This program computes passing probabilities and expected running times for SPRT tests.
@@ -18,13 +18,13 @@ def L(x):
 
 class SPRT:
 
-    def __init__(self,alpha=0.05,beta=0.05,elo0=0,elo1=5,draw_elo=280,biases=[0],mode='pentanomial'):
+    def __init__(self,alpha=0.05,beta=0.05,elo0=0,elo1=5,context=None,mode='pentanomial'):
         self.score0=L(elo0)
         self.score1=L(elo1)
         self.alpha=alpha
         self.beta=beta
         self.mode=mode
-        stats_=model_be.stats_logistic(0,draw_elo,biases)
+        stats_=context.stats(0)
         assert(mode in ('trinomial','pentanomial'))
         if mode=='trinomial':
             self.ratio=stats_['ratio']
@@ -64,9 +64,9 @@ See e.g. [W1].
         return (prob_H1,E)
         
 if __name__=='__main__':
-    defaults=model_be.LTC_defaults
-    default_biases=defaults['biases']
-    default_draw_elo=defaults['draw_elo']
+    defaults=context.LTC_defaults
+    default_biases=defaults.biases()
+    default_draw_elo=defaults.draw_elo()
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--alpha",help="probability of a false positve",type=float,default=0.05)
     parser.add_argument("--beta" ,help="probability of a false negative",type=float,default=0.05)
@@ -84,6 +84,7 @@ if __name__=='__main__':
     elo=args.elo
     draw_elo=args.draw_elo
     biases=args.biases
+    c=context.context(draw_elo,biases)
     mode=args.mode
 
     print("elo0      : %.2f" % elo0)
@@ -95,8 +96,8 @@ if __name__=='__main__':
 
     alpha=0.05
     beta=0.05
-
-    s=SPRT(alpha,beta,elo0,elo1,draw_elo,biases,mode)
+    
+    s=SPRT(alpha,beta,elo0,elo1,c,mode)
     (power,expected)=s.characteristics(elo)
 
     print("pass probability:      %4.2f%%" % (100*power))

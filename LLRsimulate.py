@@ -3,19 +3,18 @@ import sys,argparse
 
 import stats_pentanomial
 import SPRT_pentanomial
-import model_be
+import context
 import stats
 import sprta5
 
-def simulate(alpha=0.05,beta=0.05,elo0=None,elo1=None,elo=None, draw_elo=None, biases=None, mode='pentanomial'):
+def simulate(alpha=0.05,beta=0.05,elo0=None,elo1=None,elo=None, context=None, mode='pentanomial'):
     """
     We simulate the test H0:elo==elo0 versus H1:elo==elo1. All elo inputs are in logistic elo.
 """
-    belo=model_be.elo_to_belo(elo,draw_elo,biases)
     sp=SPRT_pentanomial.SPRT(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,mode=mode)
     assert(mode in ('trinomial','pentanomial'))
     while True:
-        i,j=model_be.pick(belo,draw_elo,biases)
+        i,j=context.pick(elo)
         if mode=='trinomial':
             sp.record(i)
         else:
@@ -30,9 +29,9 @@ def simulate(alpha=0.05,beta=0.05,elo0=None,elo1=None,elo=None, draw_elo=None, b
             return status,sp.length()
 
 if __name__=='__main__':
-    defaults=model_be.LTC_defaults
-    default_biases=defaults['biases']
-    default_draw_elo=defaults['draw_elo']
+    defaults=context.LTC_defaults
+    default_biases=defaults.biases()
+    default_draw_elo=defaults.draw_elo()
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--alpha",help="probability of a false positve",type=float,default=0.05)
     parser.add_argument("--beta" ,help="probability of a false negative",type=float,default=0.05)
@@ -49,9 +48,10 @@ if __name__=='__main__':
     elo1=args.elo1
     elo=args.elo
     mode=args.mode
-    biases=args.biases
     draw_elo=args.draw_elo
-    sp=sprta5.SPRT(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,draw_elo=draw_elo,biases=biases,mode=mode)
+    biases=args.biases
+    c=context.context(draw_elo,biases)
+    sp=sprta5.SPRT(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,context=c,mode=mode)
     pass_prob,expected_length=sp.characteristics(elo)
     print("elo0         : %.2f" % elo0)
     print("elo1         : %.2f" % elo1)
@@ -66,7 +66,7 @@ if __name__=='__main__':
     n=0
     while True:
         n+=1
-        status,length=simulate(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,elo=elo,draw_elo=draw_elo,biases=biases,mode=mode)
+        status,length=simulate(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,elo=elo,context=c,mode=mode)
         s_length.add(length)
         if status=='H1':
             s_pass.add(1.0)
