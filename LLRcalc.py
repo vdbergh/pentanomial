@@ -1,5 +1,6 @@
 from __future__ import division
-import math,sys
+from scipy.optimize import brentq
+import math,sys,copy
 
 def MLE(pdf,s):
     """
@@ -17,34 +18,32 @@ http://hardy.uhasselt.be/Toga/computeLLR.pdf
 
 (see Proposition 1.1).
 
-To solve the equation (1.3) in loc. cit. we use a specialized
-Newton solver.
 """
     epsilon=1e-9
     v,w=pdf[0][0],pdf[-1][0]
     l,u=-1/(w-s),1/(s-v)
     f=lambda x:sum([p*(a-s)/(1+x*(a-s)) for a,p in pdf])
-    fp=lambda x:sum([-p*(a-s)**2/(1+x*(a-s))**2 for a,p in pdf])
-    x=0
-    fx=f(x)
-    while True:
-#        print "s=%3f x=%.10f f(x)=%g [ %3f %3f]" % (s,x,f(x),l,u)
-        if fx==0:
-            break
-        xpre,fxpre=x,fx
-        x=x-fx/fp(x)
-        if x<=l:
-            x=(10*l+xpre)/11
-        elif x>=u:
-            x=(10*u+xpre)/11
-        fx=f(x)
-        if abs(x-xpre) <epsilon:
-            break
-    return [(a,p/(1+x*(a-s))) for a,p in pdf]
+    x,res=brentq(f,l+epsilon,u-epsilon,full_output=True)
+    assert(res.converged)
+    pdf_MLE=[(a,p/(1+x*(a-s))) for a,p in pdf]
+    s_,var=stats(pdf_MLE) # for validation
+    assert(abs(s-s_)<1e-6)
+    return pdf_MLE
 
-def LL(pdf1,pdf2):
-    return sum([pdf1[i][1]*math.log(pdf2[i][1]) for i in range(0,len(pdf1))])
+def stats(pdf):
+    epsilon=1e-6
+    for i in range(0,len(pdf)):
+        assert(-epsilon<=pdf[i][1]<=1+epsilon)
+    n=sum([prob for value,prob in pdf])
+    assert(abs(n-1)<epsilon)
+    s=sum([prob*value for value,prob in pdf])
+    var=sum([prob*(value-s)**2 for value,prob in pdf])
+    return s,var
 
+def LLjumps(pdf,s0,s1):
+    pdf0,pdf1=[MLE(pdf,s) for s in (s0,s1)]
+    return [(math.log(pdf1[i][1])-math.log(pdf0[i][1]),pdf[i][1]) for i in range(0,len(pdf))]
+        
 def LLR(pdf,s0,s1):
     """
 This function computes the generalized log likelihood ratio (divided by N)
@@ -52,7 +51,7 @@ for s=s1 versus s=s0 where pdf is an empirical distribution and
 s is the expectation value of the true distribution.
 pdf is a list of pairs (value,probability). 
 """
-    return LL(pdf,MLE(pdf,s1))-LL(pdf,MLE(pdf,s0))
+    return stats(LLjumps(pdf,s0,s1))[0]
 
 def LLR_alt(pdf,s0,s1):
     """
@@ -66,11 +65,6 @@ http://hardy.uhasselt.be/Toga/computeLLR.pdf
     r0,r1=[sum([prob*(value-s)**2 for value,prob in pdf]) for s in (s0,s1)]
     return 1/2*math.log(r0/r1)
 
-def stats(pdf):
-    s=sum([prob*value for value,prob in pdf])
-    var=sum([prob*(value-s)**2 for value,prob in pdf])
-    return s,var
-
 def LLR_alt2(pdf,s0,s1):
     """
 This function computes the approximate generalized log likelihood ratio (divided by N)
@@ -83,20 +77,75 @@ http://hardy.uhasselt.be/Toga/GSPRT_approximation.pdf
     s,var=stats(pdf)
     return (s1-s0)*(2*s-s0-s1)/var/2.0
 
+def stopping_rule(N,pdf,A,B,jumps):
+    """
+This implements a randomized stopping procedure for
+a random walk with boundaries A,B such that on average
+the random walk will stop (almost) exactly on A or B.
+
+N is the number of observation and pdf is the empirical
+distribution of the jumps.
+
+The return value is a triple (x,prob,status) where
+x is the current location (which can be outside the
+interval [A,B]) and prob is the probablility that the
+walk should be stopped at this point (it will be 1
+if x is outside the interval, and 0 if in the next
+step x cannot overstep the boundary, in the other cases
+it will be a value in ]0,1[. Finally status
+is the result of the walk if it is stopped at this point.
+"""
+    jumps=sorted(jumps)
+    x=N*stats(jumps)[0]
+    v,w=jumps[0][0],jumps[-1][0]
+    if x<=A:
+        return x,1,'H0'
+    if x>=B:
+        return x,1,'H1'
+    if True:
+        if x+v<A:
+            D=x-A
+            X=-sum([jumps[i][1]*(jumps[i][0]+D) for i in range(0,len(jumps)) if jumps[i][0]+D<0])
+            assert(D>=0 and X>=0)
+            p=X/(X+D)
+            assert(0<=p<=1)
+            return x,p,'H0'
+        if x+w>B:
+            D=B-x
+            X=sum([jumps[i][1]*(jumps[i][0]-D) for i in range(0,len(jumps)) if jumps[i][0]-D>0])
+            assert(D>=0 and X>=0)
+            p=X/(X+D)
+            assert(0<=p<=1)
+            return x,p,'H1'
+    return x,0,''
+
 def L_(x):
     return 1/(1+10**(-x/400))
 
-def priorize(l):
+def regularize(l):
     """ 
 If necessary mix in a small prior for regularization.
 """
     epsilon=1e-3
-    N=sum(l)
-    s=len(l)
-    if sum([k==0 for k in l]):
-        return [k*(1-epsilon/N)+epsilon/s for k in l]
-    else:
-        return l
+    l=copy.copy(l)
+    for i in range(0,len(l)):
+        if l[i]==0:
+            l[i]=epsilon
+    return l
+
+def results_to_pdf(results):
+    results=regularize(results)
+    N=sum(results)
+    l=len(results)
+    return N,[(i/(l-1),results[i]/N) for i in range(0,l)]
+    
+def sprt(alpha,beta,elo0,elo1,results):
+    N,pdf=results_to_pdf(results)
+    s0,s1=[L_(elo) for elo in (elo0,elo1)]
+    jumps=sorted(LLjumps(pdf,s0,s1))
+    LA=math.log(beta/(1-alpha))
+    LB=math.log((1-beta)/alpha)
+    return stopping_rule(N,pdf,LA,LB,jumps)
 
 def LLR_logistic(elo0,elo1,results):
     """ 
@@ -107,11 +156,8 @@ is 5 then it should contain the frequencies of the game pairs
 LL,LD+DL,LW+DD+WL,DW+WD,WW.
 elo0,elo1 are in logistic elo.
 """
-    results=priorize(results)
     s0,s1=[L_(elo) for elo in (elo0,elo1)]
-    N=sum(results)
-    l=len(results)
-    pdf=[(i/(l-1),results[i]/N) for i in range(0,l)]
+    N,pdf=results_to_pdf(results)
     s,var=stats(pdf)
     overshoot=0.583*(s1-s0)/math.sqrt(var)
     return N*LLR(pdf,s0,s1),overshoot

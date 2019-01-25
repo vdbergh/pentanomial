@@ -21,12 +21,12 @@ def simulate(alpha=0.05,beta=0.05,elo0=None,elo1=None,elo=None, context=None, mo
             sp.record(i+j)
         status=sp.status()
         if status!='':
-            return status,sp.length()
+            return status,sp.length(),sp.LLR()
         if mode=='trinomial':
             sp.record(j)
         status=sp.status()
         if status!='':
-            return status,sp.length()
+            return status,sp.length(),sp.LLR()
 
 if __name__=='__main__':
     defaults=context.LTC_defaults
@@ -63,14 +63,26 @@ if __name__=='__main__':
     print("")
     s_pass=stats.stats()
     s_length=stats.stats()
+    s_LLR_H0=stats.stats()
+    s_LLR_H1=stats.stats()
     n=0
     while True:
         n+=1
-        status,length=simulate(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,elo=elo,context=c,mode=mode)
+        status,length,LLR=simulate(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,elo=elo,context=c,mode=mode)
         s_length.add(length)
         if status=='H1':
             s_pass.add(1.0)
+            s_LLR_H1.add(LLR)
         else:
             s_pass.add(0.0)
-        print(n,s_pass.ci_mean(), s_length.ci_mean())
+            s_LLR_H0.add(LLR)
+        pass_=s_pass.ci_mean()
+        l=s_length.ci_mean()
+        LLR0=s_LLR_H0.ci_mean()
+        LLR1=s_LLR_H1.ci_mean()
+        print("n=%d pass=%.4f[%.4f,%.4f] lengths=%.1f[%.1f,%.1f] LLR0=%.3f[%.3f,%.3f] LLR1=%.3f[%.3f,%.3f]" % (n,
+                                                                                                              pass_[1],pass_[0],pass_[2],
+                                                                                                              l[1],l[0],l[2],
+                                                                                                              LLR0[1],LLR0[0],LLR0[2],
+                                                                                                              LLR1[1],LLR1[0],LLR1[2]))
         sys.stdout.flush()
