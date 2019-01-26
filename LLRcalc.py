@@ -77,48 +77,6 @@ http://hardy.uhasselt.be/Toga/GSPRT_approximation.pdf
     s,var=stats(pdf)
     return (s1-s0)*(2*s-s0-s1)/var/2.0
 
-def stopping_rule(N,pdf,A,B,jumps):
-    """
-This implements a randomized stopping procedure for
-a random walk with boundaries A,B such that on average
-the random walk will stop (almost) exactly on A or B.
-
-N is the number of observation and pdf is the empirical
-distribution of the jumps.
-
-The return value is a triple (x,prob,status) where
-x is the current location (which can be outside the
-interval [A,B]) and prob is the probablility that the
-walk should be stopped at this point (it will be 1
-if x is outside the interval, and 0 if in the next
-step x cannot overstep the boundary, in the other cases
-it will be a value in ]0,1[. Finally status
-is the result of the walk if it is stopped at this point.
-"""
-    jumps=sorted(jumps)
-    x=N*stats(jumps)[0]
-    v,w=jumps[0][0],jumps[-1][0]
-    if x<=A:
-        return x,1,'H0'
-    if x>=B:
-        return x,1,'H1'
-    if True:
-        if x+v<A:
-            D=x-A
-            X=-sum([jumps[i][1]*(jumps[i][0]+D) for i in range(0,len(jumps)) if jumps[i][0]+D<0])
-            assert(D>=0 and X>=0)
-            p=X/(X+D)
-            assert(0<=p<=1)
-            return x,p,'H0'
-        if x+w>B:
-            D=B-x
-            X=sum([jumps[i][1]*(jumps[i][0]-D) for i in range(0,len(jumps)) if jumps[i][0]-D>0])
-            assert(D>=0 and X>=0)
-            p=X/(X+D)
-            assert(0<=p<=1)
-            return x,p,'H1'
-    return x,0,''
-
 def L_(x):
     return 1/(1+10**(-x/400))
 
@@ -139,14 +97,6 @@ def results_to_pdf(results):
     l=len(results)
     return N,[(i/(l-1),results[i]/N) for i in range(0,l)]
     
-def sprt(alpha,beta,elo0,elo1,results):
-    N,pdf=results_to_pdf(results)
-    s0,s1=[L_(elo) for elo in (elo0,elo1)]
-    jumps=sorted(LLjumps(pdf,s0,s1))
-    LA=math.log(beta/(1-alpha))
-    LB=math.log((1-beta)/alpha)
-    return stopping_rule(N,pdf,LA,LB,jumps)
-
 def LLR_logistic(elo0,elo1,results):
     """ 
 This function computes the generalized log-likelihood ratio for "results" 
@@ -159,6 +109,10 @@ elo0,elo1 are in logistic elo.
     s0,s1=[L_(elo) for elo in (elo0,elo1)]
     N,pdf=results_to_pdf(results)
     s,var=stats(pdf)
+    # The well-known universal constant 0.583 is for normal increments.
+    # For the trinomial distribution it should be 0.5.
+    # For the pentanomial distribution there is also a formula.
+    # In practice this appears to make no difference.
     overshoot=0.583*(s1-s0)/math.sqrt(var)
     return N*LLR(pdf,s0,s1),overshoot
 
