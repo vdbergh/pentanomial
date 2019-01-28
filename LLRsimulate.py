@@ -6,6 +6,7 @@ import SPRT_pentanomial
 import context
 import stats
 import sprta5
+import sprt
 
 def simulate(alpha=0.05,beta=0.05,elo0=None,elo1=None,elo=None, context=None, mode='pentanomial'):
     """
@@ -21,12 +22,12 @@ def simulate(alpha=0.05,beta=0.05,elo0=None,elo1=None,elo=None, context=None, mo
             sp.record(i+j)
         status=sp.status()
         if status!='':
-            return status,sp.length(),sp.LLR()
+            return status,sp.length(),sp.LLR(),sp.results()
         if mode=='trinomial':
             sp.record(j)
         status=sp.status()
         if status!='':
-            return status,sp.length(),sp.LLR()
+            return status,sp.length(),sp.LLR(),sp.results()
 
 if __name__=='__main__':
     defaults=context.LTC_defaults
@@ -65,10 +66,21 @@ if __name__=='__main__':
     s_length=stats.stats()
     s_LLR_H0=stats.stats()
     s_LLR_H1=stats.stats()
+    s_elo_l=stats.stats()
+    s_elo=stats.stats()
+    s_elo_u=stats.stats()
     n=0
     while True:
         n+=1
-        status,length,LLR=simulate(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,elo=elo,context=c,mode=mode)
+        status,length,LLR,results=simulate(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,elo=elo,context=c,mode=mode)
+        sp_elo=sprt.sprt(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1)
+        sp_elo.set_state(results)
+        elo_sprt_l=sp_elo.analytics()['ci'][0]
+        elo_sprt=sp_elo.analytics()['elo']
+        elo_sprt_u=sp_elo.analytics()['ci'][1]
+        s_elo_l.add(elo<=elo_sprt_l)
+        s_elo.add(elo<=elo_sprt)
+        s_elo_u.add(elo<=elo_sprt_u)
         s_length.add(length)
         if status=='H1':
             s_pass.add(1.0)
@@ -80,9 +92,17 @@ if __name__=='__main__':
         l=s_length.ci_mean()
         LLR0=s_LLR_H0.ci_mean()
         LLR1=s_LLR_H1.ci_mean()
-        print("n=%d pass=%.4f[%.4f,%.4f] lengths=%.1f[%.1f,%.1f] LLR0=%.3f[%.3f,%.3f] LLR1=%.3f[%.3f,%.3f]" % (n,
-                                                                                                              pass_[1],pass_[0],pass_[2],
-                                                                                                              l[1],l[0],l[2],
-                                                                                                              LLR0[1],LLR0[0],LLR0[2],
-                                                                                                              LLR1[1],LLR1[0],LLR1[2]))
+        elo_l_ci=s_elo_l.ci_mean()
+        elo_ci=s_elo.ci_mean()
+        elo_u_ci=s_elo_u.ci_mean()
+        print("n=%d pass=%.4f[%.4f,%.4f] length=%.1f[%.1f,%.1f] LLR0=%.3f LLR1=%.3f l=%.4f[%.4f,%.4f] m=%.4f[%.4f,%.4f] u=%.4f[%.4f,%.4f]" % (n,
+                                                                                                                                              pass_[1],pass_[0],pass_[2],
+                                                                                                                                              l[1],l[0],l[2],
+                                                                                                                                              LLR0[1],
+                                                                                                                                              LLR1[1],
+                                                                                                                                              elo_l_ci[1],elo_l_ci[0],elo_l_ci[2],
+                                                                                                                                              elo_ci[1],elo_ci[0],elo_ci[2],
+                                                                                                                                              elo_u_ci[1],elo_u_ci[0],elo_u_ci[2]))
+
+
         sys.stdout.flush()

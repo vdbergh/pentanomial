@@ -21,9 +21,9 @@ class SPRT:
         self.elo1=elo1
         assert(mode in ('trinomial','pentanomial'))
         if mode=='pentanomial':
-            self.results=5*[0]
+            self.results_=5*[0]
         else:
-            self.results=3*[0]
+            self.results_=3*[0]
         self.LA=math.log(beta/(1-alpha))
         self.LB=math.log((1-beta)/alpha)
         self.status_=''
@@ -32,8 +32,8 @@ class SPRT:
     def record(self,result):
         if self.status_!='':
             return
-        self.results[result]+=1
-        self.LLR_,overshoot=LLRcalc.LLR_logistic(self.elo0,self.elo1,self.results)
+        self.results_[result]+=1
+        self.LLR_,overshoot=LLRcalc.LLR_logistic(self.elo0,self.elo1,self.results_)
         # sanitize
         overshoot=min((self.LB-self.LA)/20,overshoot)
         if self.LLR_>self.LB-overshoot:
@@ -45,8 +45,11 @@ class SPRT:
         return self.status_
 
     def length(self):
-        l=len(self.results)
-        return ((l-1)/2)*sum(self.results)
+        l=len(self.results_)
+        return ((l-1)/2)*sum(self.results_)
 
     def LLR(self):
         return self.LLR_
+
+    def results(self):
+        return self.results_
