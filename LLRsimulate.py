@@ -42,6 +42,7 @@ if __name__=='__main__':
     parser.add_argument("--biases", help="biases (expressed in BayesElo)",type=float,nargs='+',default=default_biases)
     parser.add_argument("--mode", help="'trinomial' or 'pentanomial'",choices=['trinomial','pentanomial'],default='pentanomial')
     parser.add_argument("--elo", help="actual logistic elo",type=float,required=True)
+    parser.add_argument("--verbose","-v", help="verbose",action='store_true')
     args=parser.parse_args()
     alpha=args.alpha
     beta=args.beta
@@ -51,6 +52,7 @@ if __name__=='__main__':
     mode=args.mode
     draw_elo=args.draw_elo
     biases=args.biases
+    verbose=args.verbose
     c=context.context(draw_elo,biases)
     sp=sprta5.SPRT(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,context=c,mode=mode)
     pass_prob,expected_length=sp.characteristics(elo)
@@ -72,12 +74,26 @@ if __name__=='__main__':
     n=0
     while True:
         n+=1
-        status,length,LLR,results=simulate(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,elo=elo,context=c,mode=mode)
+        status,length,LLR,results=simulate(alpha=alpha,
+                                           beta=beta,
+                                           elo0=elo0,
+                                           elo1=elo1,
+                                           elo=elo,
+                                           context=c,
+                                           mode=mode)
         sp_elo=sprt.sprt(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1)
         sp_elo.set_state(results)
         elo_sprt_l=sp_elo.analytics()['ci'][0]
         elo_sprt=sp_elo.analytics()['elo']
         elo_sprt_u=sp_elo.analytics()['ci'][1]
+        if verbose:
+            print("**** status=%s length=%d LLR=%.3f elo=%.3f[%.3f,%.3f] results=%s" % (status,
+                                                                                        length,
+                                                                                        LLR,
+                                                                                        elo_sprt,
+                                                                                        elo_sprt_l,
+                                                                                        elo_sprt_u,
+                                                                                        str(results)))
         s_elo_l.add(elo<=elo_sprt_l)
         s_elo.add(elo<=elo_sprt)
         s_elo_u.add(elo<=elo_sprt_u)
@@ -95,14 +111,15 @@ if __name__=='__main__':
         elo_l_ci=s_elo_l.ci_mean()
         elo_ci=s_elo.ci_mean()
         elo_u_ci=s_elo_u.ci_mean()
-        print("n=%d pass=%.4f[%.4f,%.4f] length=%.1f[%.1f,%.1f] LLR0=%.3f LLR1=%.3f l=%.4f[%.4f,%.4f] m=%.4f[%.4f,%.4f] u=%.4f[%.4f,%.4f]" % (n,
-                                                                                                                                              pass_[1],pass_[0],pass_[2],
-                                                                                                                                              l[1],l[0],l[2],
-                                                                                                                                              LLR0[1],
-                                                                                                                                              LLR1[1],
-                                                                                                                                              elo_l_ci[1],elo_l_ci[0],elo_l_ci[2],
-                                                                                                                                              elo_ci[1],elo_ci[0],elo_ci[2],
-                                                                                                                                              elo_u_ci[1],elo_u_ci[0],elo_u_ci[2]))
-
+        print(("n=%d pass=%.4f[%.4f,%.4f] length=%.1f[%.1f,%.1f]"+
+              " LLR0=%.3f LLR1=%.3f l=%.4f[%.4f,%.4f]"+
+              " m=%.4f[%.4f,%.4f] u=%.4f[%.4f,%.4f]") % (n,
+                                                         pass_[1],pass_[0],pass_[2],
+                                                         l[1],l[0],l[2],
+                                                         LLR0[1],
+                                                         LLR1[1],
+                                                         elo_l_ci[1],elo_l_ci[0],elo_l_ci[2],
+                                                         elo_ci[1],elo_ci[0],elo_ci[2],
+                                                         elo_u_ci[1],elo_u_ci[0],elo_u_ci[2]))
 
         sys.stdout.flush()
