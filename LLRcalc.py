@@ -42,6 +42,18 @@ def stats(pdf):
     var=sum([prob*(value-s)**2 for value,prob in pdf])
     return s,var
 
+def stats_ex(pdf):
+    """
+Computes expectation value, variance, skewness and excess
+kurtosis for a discrete distribution.
+"""
+    s,var=stats(pdf)
+    m3=sum([prob*(value-s)**3 for value,prob in pdf])
+    m4=sum([prob*(value-s)**4 for value,prob in pdf])
+    skewness=m3/var**1.5
+    exkurt=m4/var**2-3
+    return s,var,skewness,exkurt
+
 def LLRjumps(pdf,s0,s1):
     pdf0,pdf1=[MLE(pdf,s) for s in (s0,s1)]
     return [(math.log(pdf1[i][1])-math.log(pdf0[i][1]),pdf[i][1]) for i in range(0,len(pdf))]
