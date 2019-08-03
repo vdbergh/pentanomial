@@ -2,19 +2,6 @@ from __future__ import division
 
 import math,sys
 
-"""
-This program computes passing probabilities and expected running times for SPRT tests.
-
-Based on:
-
-[W1] A. Wald, Sequential analysis.
-"""
-bb=math.log(10)/400
-
-def L(x):
-    return 1/(1+math.exp(-bb*x))
-
-
 def _aux(x):
     """
 Evaluation of (exp(x)-1-x)/x
