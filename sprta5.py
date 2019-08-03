@@ -2,7 +2,7 @@ from __future__ import division
 
 import math,sys,argparse
 
-import stats_pentanomial,context
+import stats_pentanomial,context,LLRcalc,random_walk
 
 """
 This program computes passing probabilities and expected running times for SPRT tests.
@@ -24,14 +24,13 @@ class SPRT:
         self.alpha=alpha
         self.beta=beta
         self.mode=mode
+        self.context=context
         stats_=context.stats(0)
         assert(mode in ('trinomial','pentanomial'))
         if mode=='trinomial':
             self.ratio=stats_['ratio']
         else:
             self.ratio=1
-        self.var=stats_['var5']
-        self.sigma2=(self.score1-self.score0)**2/self.var
 
     def mu(self,elo_diff):
         s=L(elo_diff)
@@ -44,24 +43,17 @@ class SPRT:
 Expected running time and power of SPRT test using Brownian approximation.
 See e.g. [W1].
 """
-        mu=self.mu(elo_diff)
-        sigma2=self.sigma2
-        coeff=2*mu/sigma2
         alpha=self.alpha
         beta=self.beta
         LA=math.log(beta/(1-alpha))/self.ratio
         LB=math.log((1-beta)/alpha)/self.ratio
-        exp_a=math.exp(-coeff*LA)
-        exp_b=math.exp(-coeff*LB)
-# avoid division by zero
-        if abs(coeff*(LA-LB))<1e-6:
-            E=-LA*LB/sigma2
-            prob_H1=(0-LA)/(LB-LA)
-        else:
-            E=-(mu**(-1))*(-LA*exp_b+LB*exp_a-(LB-LA))/(exp_b-exp_a)
-            prob_H1=(1-exp_a)/(exp_b-exp_a)
-
-        return (prob_H1,E)
+        stats_=self.context.stats(elo_diff)
+        probs5=stats_['probs5']
+        pdf=LLRcalc.results_to_pdf(probs5)[1]
+        jumps=LLRcalc.LLRjumps(pdf,self.score0,self.score1)
+        r=random_walk.RandomWalk(LA,LB,jumps)
+        prob_H1,E=r.characteristics()
+        return prob_H1,2*E
         
 if __name__=='__main__':
     defaults=context.LTC_defaults
