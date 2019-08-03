@@ -109,6 +109,6 @@ Xiaoou Li, Jingchen Liu, and Zhiliang Ying, Generalized Sequential Probability R
 
 To apply it in our case we use the method developed in doc/MLE_multinomial.pdf.
 
-The theoretical estimates (in sprta5.py) are made using doc/GSPRT_approximation.pdf, formula (2.1) which gives an extremely convenient asymptotic approximation to the generalized LLR.
+The theoretical estimates in the pentanomial case (in sprta5.py) are made using doc/random_walks.pdf, fornulas (1,2,3). 
 
 Finally it well known that to have good agreement between the design paramaters of an SPRT and its actual characteristics one has to make a correction for discrete time (as the LLR will overshoot the boundaries). This we do also using the method pioneered by David Siegmund, Sequential Analysis, Tests and Confidende Intervals, p50.
