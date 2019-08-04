@@ -30,3 +30,21 @@ of a random variable.
             return (0,0,0) # adhoc for our application
         else:
             return self.mean-1.96*math.sqrt(self.M2/(self.n-1))/math.sqrt(self.n),self.mean,self.mean+1.96*math.sqrt(self.M2/(self.n-1))/math.sqrt(self.n)
+
+if __name__=='__main__':
+    import random
+    N=100000000
+    A=1
+    B=1000000
+    mu_,sigma_=B+A/2.0,A/12**.5
+    s=stats()
+    for _ in range(0,N):
+        r=A*random.random()+B
+        s.add(r)
+    print('Confidence interval for true mean=%f' % mu_)
+    print(s.ci_mean())
+    print('Sample mean and stdev:')
+    mu,sigma=s.params()
+    print(mu,sigma)
+    print('Relative error:')
+    print((mu-mu_)/mu_,(sigma-sigma_)/sigma_)
