@@ -6,18 +6,49 @@ from brentq import brentq
 import LLRcalc
 
 class sprt:
-    def __init__(self,alpha=0.05,beta=0.05,elo0=0,elo1=5):
+    def __init__(self,alpha=0.05,beta=0.05,elo0=0,elo1=5,elo_model='logistic'):
+        assert(elo_model in ('logistic','normalized'))
+        self.elo_model=elo_model
         self.a=math.log(beta/(1-alpha))
         self.b=math.log((1-beta)/alpha)
         self.elo0=elo0
         self.elo1=elo1
-        self.s0=LLRcalc.L_(elo0)
-        self.s1=LLRcalc.L_(elo1)
         self.clamped=False
         self.LLR_drift_variance=LLRcalc.LLR_drift_variance_alt2
 
+    def elo_to_score(self,elo):
+        """
+elo is expressed in our current elo_model.
+"""
+        if self.elo_model=='normalized':
+            nt=elo/LLRcalc.nelo_divided_by_nt
+            return nt*self.sigma_pg+0.5
+        else:
+            return LLRcalc.L_(elo)
+
+    def lelo_to_elo(self,lelo):
+        """
+elo is expressed in our current elo_model. lelo is 
+logistic.
+"""
+        if self.elo_model=='logistic':
+            return lelo
+        score=LLRcalc.L_(lelo)
+        nt=(score-0.5)/self.sigma_pg
+        return nt*LLRcalc.nelo_divided_by_nt
+
     def set_state(self,results):
         N,self.pdf=LLRcalc.results_to_pdf(results)
+        if self.elo_model=='normalized':
+            mu,var=LLRcalc.stats(self.pdf)       # code duplication with LLRcalc
+            if len(results)==5:
+                self.sigma_pg=(2*var)**.5
+            elif len(results)==3:
+                self.sigma_pg=var**.5
+            else:
+                assert(False);
+        self.s0,self.s1=[self.elo_to_score(elo) for elo in (self.elo0,self.elo1)]
+        
         mu_LLR,var_LLR=self.LLR_drift_variance(self.pdf,self.s0,self.s1,None)
 
         # llr estimate
@@ -77,8 +108,10 @@ less than p.
         ret['clamped']=self.clamped
         ret['a']=self.a
         ret['b']=self.b
-        ret['elo']=self.lower_cb(0.5)
-        ret['ci']=[self.lower_cb(p/2),self.lower_cb(1-p/2)]
+        ret['lelo']=self.lower_cb(0.5)
+        ret['lci']=[self.lower_cb(p/2),self.lower_cb(1-p/2)]
+        ret['elo']=self.lelo_to_elo(ret['lelo'])
+        ret['ci']=self.lelo_to_elo(ret['lci'][0]),self.lelo_to_elo(ret['lci'][1])
         ret['LOS']=self.outcome_prob(0)
         ret['LLR']=self.llr
         return ret

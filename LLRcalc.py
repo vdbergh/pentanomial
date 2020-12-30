@@ -2,6 +2,8 @@ from __future__ import division
 import brentq
 import math,sys,copy
 
+nelo_divided_by_nt=800/math.log(10) # 347.43558552260146
+
 def MLE(pdf,s):
     """
 This function computes the maximum likelood estimate for
@@ -158,4 +160,19 @@ elo0,elo1 are in logistic elo.
     s0,s1=[L_(elo) for elo in (elo0,elo1)]
     N,pdf=results_to_pdf(results)
     return N*LLR(pdf,s0,s1)
+
+def LLR_normalized(nelo0, nelo1, results):
+    count,pdf=results_to_pdf(results);
+    mu,var=stats(pdf);
+    if len(results)==5:
+        sigma_pg=(2*var)**.5
+    elif len(results)==3:
+        sigma_pg=var**.5
+    else:
+        assert(False);
+    nt0,nt1=[nelo/nelo_divided_by_nt for nelo in (nelo0,nelo1)]
+    s0,s1=[nt*sigma_pg+0.5 for nt in (nt0,nt1)]
+    # return count*LLR_alt(pdf,s0,s1);    # thematic implementation
+    return (count/2.0)*math.log((var+(mu-s0)*(mu-s0))/(var+(mu-s1)*(mu-s1))) # micro optimization
+
 

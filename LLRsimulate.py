@@ -8,12 +8,18 @@ import stats
 import sprta5
 import sprt
 
-def simulate(alpha=0.05,beta=0.05,elo0=None,elo1=None,elo=None, context=None, mode='pentanomial'):
+def simulate(alpha=0.05,beta=0.05,elo0=None,elo1=None,elo=None, context=None, mode='pentanomial', elo_model='logistic'):
     """
     We simulate the test H0:elo==elo0 versus H1:elo==elo1. All elo inputs are in logistic elo.
 """
-    sp=SPRT_pentanomial.SPRT(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,mode=mode)
     assert(mode in ('trinomial','pentanomial'))
+    assert(elo_model in ('logistic','normalized'))
+    sp=SPRT_pentanomial.SPRT(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,mode=mode,elo_model=elo_model)
+    stats_=context.stats(0)
+    var=stats_['var3'] if mode=='trinomial' else stats_['var5']
+    sigma_pg=var**.5  # different convention from LLRcals
+    if elo_model=='normalized':
+        elo=elo*(2*sigma_pg)  # approximation
     while True:
         i,j=context.pick(elo)
         if mode=='trinomial':
@@ -36,12 +42,13 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--alpha",help="probability of a false positve",type=float,default=0.05)
     parser.add_argument("--beta" ,help="probability of a false negative",type=float,default=0.05)
-    parser.add_argument("--elo0", help="H0 (expressed in logistic elo)",type=float,default=0.0)
-    parser.add_argument("--elo1", help="H1 (expressed in logistic elo)",type=float,default=5.0)
+    parser.add_argument("--elo0", help="H0",type=float,default=0.0)
+    parser.add_argument("--elo1", help="H1",type=float,default=5.0)
     parser.add_argument("--draw_elo", help="draw_elo",type=float,default=default_draw_elo)
     parser.add_argument("--biases", help="biases (expressed in BayesElo)",type=float,nargs='+',default=default_biases)
     parser.add_argument("--mode", help="'trinomial' or 'pentanomial'",choices=['trinomial','pentanomial'],default='pentanomial')
-    parser.add_argument("--elo", help="actual logistic elo",type=float,required=True)
+    parser.add_argument("--elo", help="actual elo",type=float,required=True)
+    parser.add_argument("--elo_model", help="logistic or normalized",default='logistic',choices=('logistic','normalized'))
     parser.add_argument("--verbose","-v", help="verbose",action='store_true')
     args=parser.parse_args()
     alpha=args.alpha
@@ -52,15 +59,17 @@ if __name__=='__main__':
     mode=args.mode
     draw_elo=args.draw_elo
     biases=args.biases
+    elo_model=args.elo_model
     verbose=args.verbose
     c=context.context(draw_elo,biases)
-    sp=sprta5.SPRT(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,context=c,mode=mode)
+    sp=sprta5.SPRT(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,context=c,mode=mode,elo_model=elo_model)
     pass_prob,expected_length=sp.characteristics(elo)
     print("elo0         : %.2f" % elo0)
     print("elo1         : %.2f" % elo1)
     print("elo          : %.2f" % elo)
     print("draw_elo     : %.2f" % draw_elo)
     print("biases (be)  : %s" % (str(biases)))
+    print("elo_model    : %s" % elo_model)
     print("pass_prob    : %.3f" % pass_prob)
     print("expected     : %.0f" % expected_length)
     print("")
@@ -80,8 +89,9 @@ if __name__=='__main__':
                                            elo1=elo1,
                                            elo=elo,
                                            context=c,
-                                           mode=mode)
-        sp_elo=sprt.sprt(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1)
+                                           mode=mode,
+                                           elo_model=elo_model)
+        sp_elo=sprt.sprt(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,elo_model=elo_model)
         sp_elo.set_state(results)
         elo_sprt_l=sp_elo.analytics()['ci'][0]
         elo_sprt=sp_elo.analytics()['elo']

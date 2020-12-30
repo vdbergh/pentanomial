@@ -16,24 +16,42 @@ bb=math.log(10)/400
 def L(x):
     return 1/(1+math.exp(-bb*x))
 
+def Linv(x):
+    return -math.log(1/x-1)/bb
+
 class SPRT:
 
-    def __init__(self,alpha=0.05,beta=0.05,elo0=0,elo1=5,context=None,mode='pentanomial'):
-        self.score0=L(elo0)
-        self.score1=L(elo1)
+    def __init__(self,alpha=0.05,beta=0.05,elo0=0,elo1=5,context=None,mode='pentanomial',elo_model='logistic'):
+        assert(mode in ('trinomial','pentanomial'))
+        assert(elo_model in ('logistic','normalized'))
+        self.elo_model=elo_model
+        stats_=context.stats(0)
+        if mode=='trinomial':
+            var=stats_['var3']
+            self.sigma_pg=var**.5
+        else:
+            var=stats_['var5']
+            self.sigma_pg=var**.5  # Different convention from LLRcalc :(
+        self.score0,self.score1=[self.elo_to_score(nelo) for nelo in (elo0,elo1)]
+
         self.alpha=alpha
         self.beta=beta
         self.mode=mode
         self.context=context
-        stats_=context.stats(0)
-        assert(mode in ('trinomial','pentanomial'))
         if mode=='trinomial':
             self.ratio=stats_['ratio']
         else:
             self.ratio=1
 
+    def elo_to_score(self,elo):
+        if self.elo_model=='normalized':
+            nt=elo/LLRcalc.nelo_divided_by_nt
+            return nt*self.sigma_pg+0.5
+        else:
+            return L(elo)
+
     def mu(self,elo_diff):
-        s=L(elo_diff)
+        s=self.elo_to_score(elo_diff)
         s0=self.score0
         s1=self.score1
         return (s1-s0)*(s-(s0+s1)/2)/self.var
@@ -47,7 +65,9 @@ See e.g. [W1].
         beta=self.beta
         LA=math.log(beta/(1-alpha))/self.ratio
         LB=math.log((1-beta)/alpha)/self.ratio
-        stats_=self.context.stats(elo_diff)
+        score=self.elo_to_score(elo_diff)
+        elo_diff_logistic=Linv(score)
+        stats_=self.context.stats(elo_diff_logistic) # input is logistic
         probs5=stats_['probs5']
         pdf=LLRcalc.results_to_pdf(probs5)[1]
         jumps=LLRcalc.LLRjumps(pdf,self.score0,self.score1)

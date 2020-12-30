@@ -16,9 +16,10 @@ class SPRT:
     where "result" is a half integer in the interval [0,2]
 """
 
-    def __init__(self,alpha=0.05,beta=0.05,elo0=0,elo1=5,mode='pentanomial'):
+    def __init__(self,alpha=0.05,beta=0.05,elo0=0,elo1=5,mode='pentanomial',elo_model='logistic'):
         self.elo0=elo0
         self.elo1=elo1
+        assert(elo_model in ('logistic','normalized'))
         assert(mode in ('trinomial','pentanomial'))
         if mode=='pentanomial':
             self.results_=5*[0]
@@ -34,12 +35,16 @@ class SPRT:
         self.sq1=0.0
         self.o0=0.0
         self.o1=0.0
+        self.elo_model=elo_model
 
     def record(self,result):
         if self.status_!='':
             return
         self.results_[result]+=1
-        self.LLR_=LLRcalc.LLR_logistic(self.elo0,self.elo1,self.results_)
+        if self.elo_model=='logistic':
+            self.LLR_=LLRcalc.LLR_logistic(self.elo0,self.elo1,self.results_)
+        else:
+            self.LLR_=LLRcalc.LLR_normalized(self.elo0,self.elo1,self.results_)
 
         # Dynamic overshoot correction using
         # Siegmund - Sequential Analysis - Corollary 8.33.
