@@ -1,7 +1,7 @@
 from __future__ import division
 import sys,copy,math,random
 import stats_pentanomial
-import brentq
+import scipy
 
 """
 Here we model pentanomial probabilities using the BayesElo model.
@@ -111,9 +111,9 @@ the current context.
             return self._cache[elo]
         s=L(elo)
         f=lambda x:stats_pentanomial.score(self._probs(x)[1])-s
-        res=brentq.brentq(f,-1000,1000)
-        assert(res['converged'])
-        belo=res['x0']
+        x,res=scipy.optimize.brentq(f,-1000,1000,full_output=True,disp=False)
+        assert(res.converged)
+        belo=x
         self._cache[elo]=belo
         return belo
 
