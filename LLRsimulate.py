@@ -93,9 +93,9 @@ if __name__=='__main__':
                                            elo_model=elo_model)
         sp_elo=sprt.sprt(alpha=alpha,beta=beta,elo0=elo0,elo1=elo1,elo_model=elo_model)
         sp_elo.set_state(results)
-        elo_sprt_l=sp_elo.analytics()['ci'][0]
-        elo_sprt=sp_elo.analytics()['elo']
-        elo_sprt_u=sp_elo.analytics()['ci'][1]
+        elo_sprt_l=sp_elo.lelo_to_elo(sp_elo.analytics()['ci'][0])
+        elo_sprt=sp_elo.lelo_to_elo(sp_elo.analytics()['elo'])
+        elo_sprt_u=sp_elo.lelo_to_elo(sp_elo.analytics()['ci'][1])
         if verbose:
             print("**** status=%s length=%d LLR=%.3f elo=%.3f[%.3f,%.3f] results=%s" % (status,
                                                                                         length,

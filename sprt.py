@@ -18,7 +18,7 @@ class sprt:
 
     def elo_to_score(self,elo):
         """
-elo is expressed in our current elo_model.
+"elo" is expressed in our current elo_model.
 """
         if self.elo_model=='normalized':
             nt=elo/LLRcalc.nelo_divided_by_nt
@@ -28,9 +28,9 @@ elo is expressed in our current elo_model.
 
     def lelo_to_elo(self,lelo):
         """
-elo is expressed in our current elo_model. lelo is 
-logistic.
-"""
+For external use. "elo" is expressed in our current elo_model. 
+"lelo" is logistic.
+        """
         if self.elo_model=='logistic':
             return lelo
         score=LLRcalc.L_(lelo)
@@ -108,10 +108,8 @@ less than p.
         ret['clamped']=self.clamped
         ret['a']=self.a
         ret['b']=self.b
-        ret['lelo']=self.lower_cb(0.5)
-        ret['lci']=[self.lower_cb(p/2),self.lower_cb(1-p/2)]
-        ret['elo']=self.lelo_to_elo(ret['lelo'])
-        ret['ci']=self.lelo_to_elo(ret['lci'][0]),self.lelo_to_elo(ret['lci'][1])
+        ret['elo']=self.lower_cb(0.5)
+        ret['ci']=[self.lower_cb(p/2),self.lower_cb(1-p/2)]
         ret['LOS']=self.outcome_prob(0)
         ret['LLR']=self.llr
         return ret
