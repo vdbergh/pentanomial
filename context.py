@@ -31,7 +31,7 @@ https://github.com/vdbergh/compute_stats/
 The ratio var5/var3 is equal to 0.86.
 
 This implementation is based on the concept of a "context" as introduced
-in section 5 of http://hardy.uhasselt.be/Toga/normalized_elo.pdf.
+in section 5 of http://hardy.uhasselt.be/Fishtest/normalized_elo.pdf.
 """
 
 bb=math.log(10)/400
