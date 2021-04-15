@@ -17,7 +17,7 @@ that the ai are strictly ascending, a1<s<aN and p1>0, pN>0.
 The theory behind this function can be found in the online 
 document
 
-http://hardy.uhasselt.be/Fishtest/computeLLR.pdf
+http://hardy.uhasselt.be/Fishtest/support_MLE_multinomial.pdf
 
 (see Proposition 1.1).
 
@@ -86,7 +86,7 @@ for s=s1 versus s=s0 where pdf is an empirical distribution and
 s is the expectation value of the true distribution.
 pdf is a list of pairs (value,probability). See
 
-http://hardy.uhasselt.be/Fishtest/computeLLR.pdf
+http://hardy.uhasselt.be/Fishtest/support_MLE_multinomial.pdf
 """
     r0, r1 = [sum([prob * (value - s) ** 2 for value, prob in pdf]) for s in (s0, s1)]
     return 1 / 2 * math.log(r0 / r1)
@@ -180,17 +180,23 @@ elo0,elo1 are in logistic elo.
 
 
 def LLR_normalized(nelo0, nelo1, results):
+    """
+See
+http://hardy.uhasselt.be/Fishtest/normalized_elo_practical.pdf
+"""
     count, pdf = results_to_pdf(results)
     mu, var = stats(pdf)
     if len(results) == 5:
         sigma_pg = (2 * var) ** 0.5
+        games = 2 * count
     elif len(results) == 3:
         sigma_pg = var ** 0.5
+        games = count
     else:
         assert False
     nt0, nt1 = [nelo / nelo_divided_by_nt for nelo in (nelo0, nelo1)]
-    s0, s1 = [nt * sigma_pg + 0.5 for nt in (nt0, nt1)]
-    # return count*LLR_alt(pdf,s0,s1);    # thematic implementation
-    return (count / 2.0) * math.log(
-        (var + (mu - s0) * (mu - s0)) / (var + (mu - s1) * (mu - s1))
-    )  # micro optimization
+    nt = (mu - 0.5) / sigma_pg
+
+    return (games / 2.0) * math.log(
+        (1 + (nt - nt0) * (nt - nt0)) / (1 + (nt - nt1) * (nt - nt1))
+    )
