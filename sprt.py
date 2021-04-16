@@ -141,6 +141,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("--level", help="confidence level", type=float, default=0.95)
     parser.add_argument(
+        "--elo-model",
+        help="logistic or normalized",
+        choices=['logistic', 'normalized'],
+        default='logistic',
+    )
+    parser.add_argument(
         "--results",
         help="trinomial of pentanomial frequencies, low to high",
         nargs="*",
@@ -155,8 +161,9 @@ if __name__ == "__main__":
     beta = args.beta
     elo0 = args.elo0
     elo1 = args.elo1
+    elo_model = args.elo_model
     p = 1 - args.level
-    s = sprt(alpha=alpha, beta=beta, elo0=elo0, elo1=elo1)
+    s = sprt(alpha=alpha, beta=beta, elo0=elo0, elo1=elo1, elo_model=elo_model)
     s.set_state(results)
     a = s.analytics(p)
     print("Design parameters")
@@ -165,6 +172,7 @@ if __name__ == "__main__":
     print("False negatives             :  %4.2f%%" % (100 * beta,))
     print("[Elo0,Elo1]                 :  [%.2f,%.2f]" % (elo0, elo1))
     print("Confidence level            :  %4.2f%%" % (100 * (1 - p),))
+    print("Elo model                   :  %s" % elo_model)
     print("Estimates")
     print("=========")
     print("Elo                         :  %.2f" % a["elo"])
