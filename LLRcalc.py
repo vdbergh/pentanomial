@@ -1,8 +1,41 @@
 from __future__ import division
 import math, sys, copy
-import scipy
+import scipy.optimize
+
+"""
+The probality distributions used below (generally named "pdf")
+are represented by a list of tuples (ai,pi), i=1,...,N.
+It is usually assumed that the ai are strictly ascending,
+a1<s<aN and p1>0, pN>0.
+"""
 
 nelo_divided_by_nt = 800 / math.log(10)  # 347.43558552260146
+
+
+def secular(pdf):
+    """
+Solves the secular equation
+sum_i pi*ai/(1+x*ai)=0
+"""
+    epsilon = 1e-9
+    v, w = pdf[0][0], pdf[-1][0]
+    values = [ai for ai, pi in pdf]
+    v = min(values)
+    w = max(values)
+    assert v * w < 0
+    l = -1 / w
+    u = -1 / v
+    f = lambda x: sum([pi * ai / (1 + x * ai) for ai, pi in pdf])
+    x, res = scipy.optimize.brentq(
+        f, l + epsilon, u - epsilon, full_output=True, disp=False
+    )
+    assert res.converged
+    return x
+
+
+def uniform(pdf):
+    n = len(pdf)
+    return [(ai, 1 / n) for ai, pi in pdf]
 
 
 def MLE(pdf, s):
@@ -11,10 +44,7 @@ This function computes the maximum likelood estimate for
 a discrete distribution with expectation value s,
 given an observed (i.e. empirical) distribution pdf.
 
-pdf is a list of tuples (ai,pi), i=1,...,N. It is assumed that 
-that the ai are strictly ascending, a1<s<aN and p1>0, pN>0.
-
-The theory behind this function can be found in the online 
+The theory behind this function can be found in the online
 document
 
 http://hardy.uhasselt.be/Fishtest/support_MLE_multinomial.pdf
@@ -22,19 +52,49 @@ http://hardy.uhasselt.be/Fishtest/support_MLE_multinomial.pdf
 (see Proposition 1.1).
 
 """
-    epsilon = 1e-9
-    v, w = pdf[0][0], pdf[-1][0]
-    assert v < s < w
-    l, u = -1 / (w - s), 1 / (s - v)
-    f = lambda x: sum([p * (a - s) / (1 + x * (a - s)) for a, p in pdf])
-    x, res = scipy.optimize.brentq(
-        f, l + epsilon, u - epsilon, full_output=True, disp=False
-    )
-    assert res.converged
-    pdf_MLE = [(a, p / (1 + x * (a - s))) for a, p in pdf]
-    s_, var = stats(pdf_MLE)  # for validation
+    pdf1 = [(ai - s, pi) for ai, pi in pdf]
+    x = secular(pdf1)
+    pdf_MLE = [(ai, pi / (1 + x * (ai - s))) for ai, pi in pdf]
+    s_, _ = stats(pdf_MLE)  # for validation
     assert abs(s - s_) < 1e-6
     return pdf_MLE
+
+
+def MLE_normalized(pdf, ref, s):
+    """
+This function computes the maximum likelood estimate for
+a discrete distribution with t-value ((mu-ref)/sigma),
+given an observed (i.e. empirical) distribution pdf.
+
+TODO: Update
+
+The theory behind this function can be found in the online
+document
+
+http://hardy.uhasselt.be/Fishtest/support_MLE_multinomial.pdf
+
+(see Proposition 1.1).
+
+"""
+    pdfhat = pdf
+    pdf = uniform(pdf)
+    for i in range(10):
+        pdf_ = pdf
+        mu, var = stats(pdf)
+        sigma = var ** (1 / 2)
+        pdf1 = [
+            (ai - ref - s * sigma * (1 + ((mu - ai) / sigma) ** 2) / 2, pi)
+            for ai, pi in pdfhat
+        ]
+        x = secular(pdf1)
+        pdf = [
+            (pdfhat[i][0], pdfhat[i][1] / (1 + x * pdf1[i][0])) for i in range(len(pdf))
+        ]
+        if max([abs(pdf_[i][1] - pdf[i][1]) for i in range(len(pdf))]) < 1e-8:
+            break
+    mu, var = stats(pdf)  # for validation
+    assert (s - (mu - ref) / var ** 0.5) < 1e-6
+    return pdf
 
 
 def stats(pdf):
@@ -61,22 +121,27 @@ kurtosis for a discrete distribution.
     return s, var, skewness, exkurt
 
 
-def LLRjumps(pdf, s0, s1):
-    pdf0, pdf1 = [MLE(pdf, s) for s in (s0, s1)]
+def LLRjumps(pdf, s0, s1, ref=None, score_model='expectation'):
+    if score_model == 'expectation':
+        pdf0, pdf1 = [MLE(pdf, s) for s in (s0, s1)]
+    elif score_model == 't_value':
+        pdf0, pdf1 = [MLE_normalized(pdf, ref, s) for s in (s0, s1)]
+    else:
+        assert False
     return [
         (math.log(pdf1[i][1]) - math.log(pdf0[i][1]), pdf[i][1])
         for i in range(0, len(pdf))
     ]
 
 
-def LLR(pdf, s0, s1):
+def LLR(pdf, s0, s1, ref=None, score_model='expectation'):
     """
 This function computes the generalized log likelihood ratio (divided by N)
 for s=s1 versus s=s0 where pdf is an empirical distribution and
-s is the expectation value of the true distribution.
+s is score of the true distribution.
 pdf is a list of pairs (value,probability). 
 """
-    return stats(LLRjumps(pdf, s0, s1))[0]
+    return stats(LLRjumps(pdf, s0, s1, ref=ref, score_model=score_model))[0]
 
 
 def LLR_alt(pdf, s0, s1):
@@ -176,10 +241,10 @@ elo0,elo1 are in logistic elo.
 """
     s0, s1 = [L_(elo) for elo in (elo0, elo1)]
     N, pdf = results_to_pdf(results)
-    return N * LLR(pdf, s0, s1)
+    return N * LLR(pdf, s0, s1, score_model='expectation')
 
 
-def LLR_normalized(nelo0, nelo1, results):
+def LLR_normalized_alt(nelo0, nelo1, results):
     """
 See
 http://hardy.uhasselt.be/Fishtest/normalized_elo_practical.pdf
@@ -200,3 +265,74 @@ http://hardy.uhasselt.be/Fishtest/normalized_elo_practical.pdf
     return (games / 2.0) * math.log(
         (1 + (nt - nt0) * (nt - nt0)) / (1 + (nt - nt1) * (nt - nt1))
     )
+
+
+def LLR_normalized(nelo0, nelo1, results):
+    nt0, nt1 = [nelo / nelo_divided_by_nt for nelo in (nelo0, nelo1)]
+    sqrt2 = 2 ** 0.5
+    t0, t1 = (
+        (nt0, nt1)
+        if len(results) == 3
+        else (nt0 * sqrt2, nt1 * sqrt2)
+        if len(results) == 5
+        else None
+    )
+    N, pdf = results_to_pdf(results)
+    return N * LLR(pdf, t0, t1, ref=1 / 2, score_model='t_value')
+
+
+if __name__ == '__main__':
+    R = [0, 0, 100000, 0, 0]
+    nelo0 = 0.5
+    nelo1 = 3.5
+    print(LLR_normalized_alt(nelo0, nelo1, R))
+    print(LLR_normalized(nelo0, nelo1, R))
+
+    #    sys.exit()
+
+    R = [651, 13859, 68808, 14036, 646]
+    #    R=[1,1,200000,1,1]
+    s0 = 0.49970
+    s1 = 0.50148
+    elo0 = -0.205
+    elo1 = 1.027
+    print(LLR_logistic(elo0, elo1, R))
+    nelo0 = -0.5
+    nelo1 = 2.5
+    #    nelo0=-100
+    #    nelo1=100.5
+    print("t0=", nelo0 / nelo_divided_by_nt * 2 ** 0.5)
+    print("t1=", nelo1 / nelo_divided_by_nt * 2 ** 0.5)
+    print(LLR_normalized_alt(nelo0, nelo1, R))
+    print(LLR_normalized(nelo0, nelo1, R))
+
+    R = [7, 621, 8338, 633, 9]
+    nelo0 = -2.5
+    nelo1 = 0.5
+    print(LLR_normalized_alt(nelo0, nelo1, R))
+    print(LLR_normalized(nelo0, nelo1, R))
+
+    R = [887, 5735, 11119, 5734, 969]
+    nelo0 = -0.5
+    nelo1 = 2.5
+    print(LLR_normalized_alt(nelo0, nelo1, R))
+    print(LLR_normalized(nelo0, nelo1, R))
+
+    R = [0, 13, 263, 28, 0]
+    nelo0 = 0.5
+    nelo1 = 3.5
+    print(LLR_normalized_alt(nelo0, nelo1, R))
+    print(LLR_normalized(nelo0, nelo1, R))
+
+    R = [1, 140, 1551, 145, 3]
+    nelo0 = 0.5
+    nelo1 = 3.5
+    print(LLR_normalized_alt(nelo0, nelo1, R))
+    print(LLR_normalized(nelo0, nelo1, R))
+
+    R = [2, 637, 3355, 998, 8]
+    nelo0 = -0.5
+    nelo1 = 2.5
+    print(LLR_normalized_alt(nelo0, nelo1, R))
+    print(LLR_normalized(nelo0, nelo1, R))
+    R = [2, 637, 3355, 998, 8]
